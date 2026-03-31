@@ -286,4 +286,3 @@ This project is designed as a **portfolio-level backend system** focusing on:
 * Clean architecture
 * Scalability considerations
 * Real-world backend patterns
->>>>>>> b4d6737ca39b63edeb6e238b7ff0995753e9a568
