@@ -1,23 +1,26 @@
-# Use the official Node.js image as the base image
-FROM node:20
+FROM node:20 AS builder
 
-# Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
+RUN npm ci
 
-# Install the application dependencies
-RUN npm install
-
-# Copy the rest of the application files
 COPY . .
-
-# Build the NestJS application
+RUN npx prisma generate
 RUN npm run build
 
-# Expose the application port
+FROM node:20 AS runtime
+
+WORKDIR /usr/src/app
+ENV NODE_ENV=production
+
+COPY package*.json ./
+COPY prisma ./prisma
+RUN npm ci --omit=dev
+RUN npx prisma generate
+
+COPY --from=builder /usr/src/app/dist ./dist
+
 EXPOSE 3000
 
-# Command to run the application
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]
