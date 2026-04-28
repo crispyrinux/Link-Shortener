@@ -1,0 +1,10 @@
+ALTER TABLE "Url"
+ADD COLUMN "userId" UUID;
+
+CREATE INDEX "Url_userId_idx" ON "Url"("userId");
+
+ALTER TABLE "Url"
+ADD CONSTRAINT "Url_userId_fkey"
+FOREIGN KEY ("userId") REFERENCES "users"("id")
+ON DELETE SET NULL
+ON UPDATE CASCADE;
