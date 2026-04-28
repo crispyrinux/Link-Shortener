@@ -39,7 +39,7 @@ export function Navbar() {
                 href="/dashboard"
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                  pathname === "/dashboard"
+                  pathname.startsWith("/dashboard")
                     ? "bg-white/10 text-white"
                     : "text-slate-400 hover:bg-white/5 hover:text-white"
                 )}

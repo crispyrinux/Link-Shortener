@@ -24,9 +24,13 @@ export interface ShortUrl {
 export interface UrlStats {
   id: string;
   shortCode: string;
+  shortUrl: string;
+  qrCodeDataUrl: string;
   originalUrl: string;
   clickCount: number;
   createdAt: string;
+  updatedAt?: string;
+  expiresAt?: string | null;
 }
 
 export interface ApiError {
@@ -181,6 +185,49 @@ export async function getStats(shortCode: string): Promise<UrlStats> {
       method: "GET",
     }
   );
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function getUrlStatsById(urlId: string): Promise<UrlStats> {
+  const response = await fetchWithRefresh(`${API_BASE_URL}/urls/${urlId}/stats`, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function updateShortUrl(
+  urlId: string,
+  data: { originalUrl?: string; customAlias?: string }
+): Promise<ShortUrl> {
+  const response = await fetchWithRefresh(`${API_BASE_URL}/urls/${urlId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function deleteShortUrl(
+  urlId: string
+): Promise<{ id: string; message: string }> {
+  const response = await fetchWithRefresh(`${API_BASE_URL}/urls/${urlId}`, {
+    method: "DELETE",
+  });
 
   if (!response.ok) {
     throw new Error(await getErrorMessage(response));

@@ -14,17 +14,15 @@ import { Navbar } from "@/components/navbar";
 import { AnimatedBackground } from "@/components/animated-background";
 import { UrlShortener } from "@/components/dashboard/url-shortener";
 import { RecentLinks } from "@/components/dashboard/recent-links";
-import { StatsPanel } from "@/components/dashboard/stats-panel";
 import { GlassCard } from "@/components/glass-card";
 import { CoreSpinLoader } from "@/components/ui/spinner";
 import { useAuth } from "@/lib/auth-context";
-import { getMyUrls, type ShortUrl, type UrlStats } from "@/lib/api";
+import { getMyUrls, type ShortUrl } from "@/lib/api";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [recentLinks, setRecentLinks] = useState<ShortUrl[]>([]);
-  const [selectedStats, setSelectedStats] = useState<UrlStats | null>(null);
   const [linksLoading, setLinksLoading] = useState(true);
   const [linksError, setLinksError] = useState<string | null>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -110,14 +108,12 @@ export default function DashboardPage() {
   }
 
   const totalClicks = recentLinks.reduce((sum, link) => sum + link.clickCount, 0);
-  const latestClicks = selectedStats?.clickCount ?? recentLinks[0]?.clickCount ?? 0;
+  const latestClicks = recentLinks[0]?.clickCount ?? 0;
   const averageClicks =
     recentLinks.length > 0 ? Math.round(totalClicks / recentLinks.length) : "—";
-  const latestClicksCaption = selectedStats
-    ? `Stats for ${selectedStats.shortCode}`
-    : recentLinks[0]
-      ? `Latest link: ${recentLinks[0].shortCode}`
-      : "No stats yet";
+  const latestClicksCaption = recentLinks[0]
+    ? `Latest link: ${recentLinks[0].shortCode}`
+    : "No stats yet";
   const averageClicksCaption =
     recentLinks.length > 0 ? "Average clicks per link" : "Create a link to begin";
 
@@ -126,7 +122,7 @@ export default function DashboardPage() {
       <AnimatedBackground />
       <Navbar />
 
-      <main ref={dashboardRef} className="relative z-10 pt-24 pb-16">
+      <main ref={dashboardRef} className="relative z-10 pb-16 pt-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <div className="flex items-center gap-2 text-cyan-400">
@@ -137,7 +133,7 @@ export default function DashboardPage() {
               Hello, {user.name.split(" ")[0]}!
             </h1>
             <p className="mt-2 text-slate-400">
-              Manage your short links and track their performance
+              Manage your short links and open detailed stats in a dedicated page
             </p>
           </div>
 
@@ -155,6 +151,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </GlassCard>
+
             <GlassCard className="p-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20">
@@ -168,6 +165,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </GlassCard>
+
             <GlassCard className="p-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20">
@@ -199,22 +197,10 @@ export default function DashboardPage() {
               <div className="dashboard-card opacity-0">
                 <UrlShortener onLinkCreated={handleLinkCreated} />
               </div>
-
-              {selectedStats && (
-                <div className="dashboard-card opacity-0">
-                  <StatsPanel
-                    stats={selectedStats}
-                    onClose={() => setSelectedStats(null)}
-                  />
-                </div>
-              )}
             </div>
 
             <div className="dashboard-card opacity-0">
-              <RecentLinks
-                links={recentLinks}
-                onViewStats={(stats) => setSelectedStats(stats)}
-              />
+              <RecentLinks links={recentLinks} />
             </div>
           </div>
         </div>

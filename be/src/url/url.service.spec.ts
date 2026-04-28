@@ -13,6 +13,7 @@ describe('UrlService', () => {
       findFirst: jest.Mock;
       findUnique: jest.Mock;
       update: jest.Mock;
+      delete: jest.Mock;
     };
   };
   let configService: {
@@ -27,6 +28,7 @@ describe('UrlService', () => {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
       },
     };
     configService = {
@@ -209,35 +211,160 @@ describe('UrlService', () => {
   });
 
   it('returns stats only for the owning user', async () => {
+    jest
+      .spyOn(service as any, 'generateQrCodeDataUrl')
+      .mockResolvedValue('data:image/png;base64,qr-code-stats');
     prismaService.url.findFirst.mockResolvedValue({
       id: 'url-1',
       shortCode: 'abc123',
       originalUrl: 'https://example.com',
       clickCount: 3,
       createdAt: new Date('2026-04-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-23T00:00:00.000Z'),
+      expiresAt: null,
     });
 
-    const result = await service.getStats('abc123', 'user-1');
+    const result = await service.getUrlStats('url-1', 'user-1');
 
     expect(prismaService.url.findFirst).toHaveBeenCalledWith({
       where: {
-        shortCode: 'abc123',
+        id: 'url-1',
         userId: 'user-1',
       },
     });
     expect(result).toEqual({
       id: 'url-1',
       shortCode: 'abc123',
+      shortUrl: 'http://localhost:3000/abc123',
+      qrCodeDataUrl: 'data:image/png;base64,qr-code-stats',
       originalUrl: 'https://example.com',
       clickCount: 3,
       createdAt: new Date('2026-04-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-23T00:00:00.000Z'),
+      expiresAt: null,
+    });
+  });
+
+  it('updates a URL owned by the authenticated user', async () => {
+    jest
+      .spyOn(service as any, 'generateQrCodeDataUrl')
+      .mockResolvedValue('data:image/png;base64,qr-code-updated');
+    prismaService.url.findFirst.mockResolvedValueOnce({
+      id: 'url-1',
+      shortCode: 'abc123',
+      originalUrl: 'https://example.com',
+      clickCount: 3,
+      createdAt: new Date('2026-04-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-22T00:00:00.000Z'),
+      expiresAt: null,
+      userId: 'user-1',
+    });
+    prismaService.url.findUnique.mockResolvedValueOnce(null);
+    prismaService.url.update.mockResolvedValue({
+      id: 'url-1',
+      shortCode: 'new-alias',
+      originalUrl: 'https://example.com/updated',
+      clickCount: 3,
+      createdAt: new Date('2026-04-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-24T00:00:00.000Z'),
+      expiresAt: null,
+    });
+
+    const result = await service.updateUserUrl(
+      'url-1',
+      {
+        originalUrl: 'https://example.com/updated',
+        customAlias: 'new-alias',
+      },
+      'user-1',
+    );
+
+    expect(prismaService.url.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'url-1',
+        userId: 'user-1',
+      },
+    });
+    expect(prismaService.url.findUnique).toHaveBeenCalledWith({
+      where: { shortCode: 'new-alias' },
+      select: { id: true },
+    });
+    expect(prismaService.url.update).toHaveBeenCalledWith({
+      where: { id: 'url-1' },
+      data: {
+        originalUrl: 'https://example.com/updated',
+        shortCode: 'new-alias',
+      },
+    });
+    expect(result).toEqual({
+      id: 'url-1',
+      shortCode: 'new-alias',
+      shortUrl: 'http://localhost:3000/new-alias',
+      qrCodeDataUrl: 'data:image/png;base64,qr-code-updated',
+      originalUrl: 'https://example.com/updated',
+      clickCount: 3,
+      createdAt: new Date('2026-04-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-24T00:00:00.000Z'),
+      expiresAt: null,
+    });
+  });
+
+  it('deletes a URL owned by the authenticated user', async () => {
+    prismaService.url.findFirst.mockResolvedValue({
+      id: 'url-1',
+    });
+
+    const result = await service.deleteUserUrl('url-1', 'user-1');
+
+    expect(prismaService.url.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'url-1',
+        userId: 'user-1',
+      },
+      select: { id: true },
+    });
+    expect(prismaService.url.delete).toHaveBeenCalledWith({
+      where: { id: 'url-1' },
+    });
+    expect(result).toEqual({
+      id: 'url-1',
+      message: 'Short URL deleted successfully',
+    });
+  });
+
+  it('still supports stats lookup by short code for the owning user', async () => {
+    jest
+      .spyOn(service as any, 'generateQrCodeDataUrl')
+      .mockResolvedValue('data:image/png;base64,qr-code-short-code-stats');
+    prismaService.url.findFirst.mockResolvedValueOnce({
+      id: 'url-1',
+      shortCode: 'abc123',
+      originalUrl: 'https://example.com',
+      clickCount: 3,
+      createdAt: new Date('2026-04-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-23T00:00:00.000Z'),
+      expiresAt: null,
+    });
+
+    const result = await service.getStats('abc123', 'user-1');
+
+    expect(result).toEqual({
+      id: 'url-1',
+      shortCode: 'abc123',
+      shortUrl: 'http://localhost:3000/abc123',
+      qrCodeDataUrl: 'data:image/png;base64,qr-code-short-code-stats',
+      originalUrl: 'https://example.com',
+      clickCount: 3,
+      createdAt: new Date('2026-04-22T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-23T00:00:00.000Z'),
+      expiresAt: null,
     });
   });
 
   it('throws not found when a user requests stats for another users URL', async () => {
     prismaService.url.findFirst.mockResolvedValue(null);
 
-    await expect(service.getStats('abc123', 'user-2')).rejects.toBeInstanceOf(
+    await expect(service.getUrlStats('url-1', 'user-2')).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });

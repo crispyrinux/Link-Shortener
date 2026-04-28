@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUrlDto } from './dto/create-url.dto';
+import { UpdateUrlDto } from './dto/update-url.dto';
 
 @Injectable()
 export class UrlService {
@@ -39,19 +40,8 @@ export class UrlService {
         userId,
       },
     });
-    const shortUrl = this.buildShortUrl(url.shortCode);
 
-    return {
-      id: url.id,
-      shortCode: url.shortCode,
-      shortUrl,
-      qrCodeDataUrl: await this.generateQrCodeDataUrl(shortUrl),
-      originalUrl: url.originalUrl,
-      clickCount: url.clickCount,
-      createdAt: url.createdAt,
-      updatedAt: url.updatedAt,
-      expiresAt: url.expiresAt,
-    };
+    return this.serializeUrl(url);
   }
 
   async findUserUrls(userId: string) {
@@ -60,23 +50,66 @@ export class UrlService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return Promise.all(
-      urls.map(async (url) => {
-        const shortUrl = this.buildShortUrl(url.shortCode);
+    return Promise.all(urls.map((url) => this.serializeUrl(url)));
+  }
 
-        return {
-          id: url.id,
-          shortCode: url.shortCode,
-          shortUrl,
-          qrCodeDataUrl: await this.generateQrCodeDataUrl(shortUrl),
-          originalUrl: url.originalUrl,
-          clickCount: url.clickCount,
-          createdAt: url.createdAt,
-          updatedAt: url.updatedAt,
-          expiresAt: url.expiresAt,
-        };
-      }),
-    );
+  async updateUserUrl(urlId: string, dto: UpdateUrlDto, userId: string) {
+    const url = await this.prisma.url.findFirst({
+      where: {
+        id: urlId,
+        userId,
+      },
+    });
+
+    if (!url) {
+      throw new NotFoundException('Short URL not found');
+    }
+
+    let shortCode = url.shortCode;
+
+    if (dto.customAlias !== undefined) {
+      const normalizedAlias = dto.customAlias.trim();
+
+      if (normalizedAlias !== url.shortCode) {
+        shortCode = await this.ensureCustomAliasIsAvailable(
+          normalizedAlias,
+          url.id,
+        );
+      }
+    }
+
+    const updatedUrl = await this.prisma.url.update({
+      where: { id: url.id },
+      data: {
+        originalUrl: dto.originalUrl ?? url.originalUrl,
+        shortCode,
+      },
+    });
+
+    return this.serializeUrl(updatedUrl);
+  }
+
+  async deleteUserUrl(urlId: string, userId: string) {
+    const url = await this.prisma.url.findFirst({
+      where: {
+        id: urlId,
+        userId,
+      },
+      select: { id: true },
+    });
+
+    if (!url) {
+      throw new NotFoundException('Short URL not found');
+    }
+
+    await this.prisma.url.delete({
+      where: { id: url.id },
+    });
+
+    return {
+      id: url.id,
+      message: 'Short URL deleted successfully',
+    };
   }
 
   async redirect(shortCode: string) {
@@ -104,6 +137,21 @@ export class UrlService {
     return url.originalUrl;
   }
 
+  async getUrlStats(urlId: string, userId: string) {
+    const url = await this.prisma.url.findFirst({
+      where: {
+        id: urlId,
+        userId,
+      },
+    });
+
+    if (!url) {
+      throw new NotFoundException('Short URL not found');
+    }
+
+    return this.serializeUrl(url);
+  }
+
   async getStats(shortCode: string, userId: string) {
     const url = await this.prisma.url.findFirst({
       where: {
@@ -116,23 +164,20 @@ export class UrlService {
       throw new NotFoundException('Short URL not found');
     }
 
-    return {
-      id: url.id,
-      shortCode: url.shortCode,
-      originalUrl: url.originalUrl,
-      clickCount: url.clickCount,
-      createdAt: url.createdAt,
-    };
+    return this.serializeUrl(url);
   }
 
-  private async ensureCustomAliasIsAvailable(customAlias: string) {
+  private async ensureCustomAliasIsAvailable(
+    customAlias: string,
+    currentUrlId?: string,
+  ) {
     const normalizedAlias = customAlias.trim();
     const existing = await this.prisma.url.findUnique({
       where: { shortCode: normalizedAlias },
       select: { id: true },
     });
 
-    if (existing) {
+    if (existing && existing.id !== currentUrlId) {
       throw new BadRequestException('Custom alias already in use');
     }
 
@@ -151,6 +196,10 @@ export class UrlService {
       errorCorrectionLevel: 'M',
       margin: 1,
       width: 240,
+      color: {
+        dark: '#0a1630',
+        light: '#e8fbff',
+      },
     });
   }
 
@@ -167,5 +216,29 @@ export class UrlService {
     }
 
     return shortCode;
+  }
+
+  private async serializeUrl(url: {
+    id: string;
+    shortCode: string;
+    originalUrl: string;
+    clickCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+    expiresAt: Date | null;
+  }) {
+    const shortUrl = this.buildShortUrl(url.shortCode);
+
+    return {
+      id: url.id,
+      shortCode: url.shortCode,
+      shortUrl,
+      qrCodeDataUrl: await this.generateQrCodeDataUrl(shortUrl),
+      originalUrl: url.originalUrl,
+      clickCount: url.clickCount,
+      createdAt: url.createdAt,
+      updatedAt: url.updatedAt,
+      expiresAt: url.expiresAt,
+    };
   }
 }

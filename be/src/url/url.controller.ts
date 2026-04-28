@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Patch,
   Param,
   Post,
   Req,
@@ -21,6 +23,7 @@ import type { AuthenticatedRequest } from '../auth/types/auth-request.type';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UrlService } from './url.service';
 import { CreateUrlDto } from './dto/create-url.dto';
+import { UpdateUrlDto } from './dto/update-url.dto';
 
 @ApiTags('url')
 @Controller()
@@ -44,6 +47,41 @@ export class UrlController {
   @Get('urls')
   findMyUrls(@Req() req: AuthenticatedRequest) {
     return this.urlService.findUserUrls(req.user.id);
+  }
+
+  @ApiOperation({ summary: 'Update a short URL owned by the authenticated user' })
+  @ApiParam({ name: 'id', example: 'clx123abc456' })
+  @ApiBody({ type: UpdateUrlDto })
+  @ApiResponse({ status: 200, description: 'Short URL updated successfully' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('urls/:id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUrlDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.urlService.updateUserUrl(id, dto, req.user.id);
+  }
+
+  @ApiOperation({ summary: 'Delete a short URL owned by the authenticated user' })
+  @ApiParam({ name: 'id', example: 'clx123abc456' })
+  @ApiResponse({ status: 200, description: 'Short URL deleted successfully' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete('urls/:id')
+  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.urlService.deleteUserUrl(id, req.user.id);
+  }
+
+  @ApiOperation({ summary: 'Get stats for a users short URL by id' })
+  @ApiParam({ name: 'id', example: 'clx123abc456' })
+  @ApiResponse({ status: 200, description: 'Short URL stats returned' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('urls/:id/stats')
+  getUrlStats(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.urlService.getUrlStats(id, req.user.id);
   }
 
   @ApiOperation({ summary: 'Get stats for a short URL' })

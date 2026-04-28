@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { animate } from "animejs";
 import {
@@ -212,23 +213,34 @@ export function UrlShortener({ onLinkCreated }: UrlShortenerProps) {
                   Scan or download to open this short link quickly
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDownloadQr}
-                className="border-white/10 bg-slate-900/70 text-slate-200 hover:bg-slate-800"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download QR
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDownloadQr}
+                  className="border-white/10 bg-slate-900/70 text-slate-200 hover:bg-slate-800"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download QR
+                </Button>
+                <Button
+                  asChild
+                  type="button"
+                  className="bg-gradient-to-r from-cyan-500 to-indigo-600 text-white hover:from-cyan-400 hover:to-indigo-500"
+                >
+                  <Link href={`/dashboard/stats/${encodeURIComponent(result.shortCode)}`}>
+                    View Stats
+                  </Link>
+                </Button>
+              </div>
             </div>
 
-            <div className="mt-4 flex justify-center rounded-xl border border-white/8 bg-white p-4">
+            <div className="mt-4 flex justify-center rounded-xl border border-cyan-300/14 bg-[#08111f] p-4">
               <QRCode
                 value={result.shortUrl}
                 size={160}
-                fgColor="#020617"
-                bgColor="#ffffff"
+                fgColor="#0b1533"
+                bgColor="#e8fbff"
                 className="h-40 w-40"
               />
             </div>
